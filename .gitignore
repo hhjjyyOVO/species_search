@@ -1,0 +1,28 @@
+# 数据库文件（~2.7GB，运行时生成）
+taxonomy.db
+taxonomy.db-journal
+taxonomy.db-wal
+taxonomy.db-shm
+
+# NCBI dump 原始数据（~2.1GB，从 NCBI 自行下载）
+new_taxdump/
+
+# 原始下载存档（large binary, >100MB）
+archive/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.log

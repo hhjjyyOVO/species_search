@@ -1,0 +1,2 @@
+# NCBI Taxonomy Query System
+# 纯 Python 标准库，无需额外安装

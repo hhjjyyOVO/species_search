@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NCBI 物种分类查询系统</title>
+<script>
+// 检测是否通过 file:// 协议打开
+if (window.location.protocol === 'file:') {
+  document.write('<div style="max-width:600px;margin:80px auto;font-family:Microsoft YaHei,sans-serif;text-align:center;background:#fff;padding:40px;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.1)">' +
+    '<h2 style="color:#c53030">⚠ 请不要直接打开此文件</h2>' +
+    '<p style="color:#4a5568;line-height:1.8">请通过 HTTP 服务器访问，在项目目录下运行：</p>' +
+    '<p style="font-size:18px;margin:16px 0"><code style="background:#edf2f7;padding:6px 16px;border-radius:6px">python webui/server.py</code></p>' +
+    '<p style="margin-top:12px;color:#a0aec0;font-size:13px">或双击项目根目录下的 <b>start.bat</b> 一键启动</p>' +
+    '<p style="margin-top:16px">然后浏览器打开：</p>' +
+    '<p style="font-size:18px;font-weight:700;color:#2b6cb0"><a href="http://127.0.0.1:8520" style="color:#2b6cb0">http://127.0.0.1:8520</a></p>' +
+    '</div>');
+  throw new Error('请通过 HTTP 服务器访问，不要直接打开 HTML 文件');
+}
+</script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #f0f4f8; color: #2d3748; min-height:100vh; }
+.header { background: linear-gradient(135deg, #1a365d, #2b6cb0); color: #fff; padding: 24px 40px; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+.header h1 { font-size: 26px; font-weight: 600; letter-spacing: 1px; }
+.header p { font-size: 13px; opacity: .75; margin-top: 4px; }
+.container { max-width: 960px; margin: 0 auto; padding: 24px 20px; }
+.search-box { display:flex; gap:10px; margin-bottom: 20px; }
+.search-box input { flex:1; padding: 14px 20px; font-size: 17px; border: 2px solid #cbd5e0; border-radius: 12px; outline:none; transition: border-color .2s; }
+.search-box input:focus { border-color: #2b6cb0; }
+.search-box button { padding: 14px 28px; font-size: 17px; background: #2b6cb0; color: #fff; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; transition: background .2s; }
+.search-box button:hover { background: #1a4a8a; }
+.quick-links { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+.quick-links span { font-size: 13px; color: #718096; line-height: 30px; }
+.quick-links a { font-size: 13px; color: #2b6cb0; text-decoration: none; padding: 4px 10px; background: #ebf4ff; border-radius: 14px; cursor: pointer; transition: background .15s; }
+.quick-links a:hover { background: #bee3f8; }
+.card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.card h3 { font-size: 18px; margin-bottom: 12px; color: #1a365d; }
+.result-item { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; cursor: pointer; transition: background .1s; }
+.result-item:hover { background: #f7fafc; }
+.result-item:last-child { border-bottom: none; }
+.result-item .id { font-family: monospace; color: #2b6cb0; font-weight: 600; min-width: 70px; }
+.result-item .name { flex: 1; font-weight: 500; }
+.result-item .name i { font-style:italic; color: #4a5568; }
+.result-item .zh { color: #e53e3e; margin-left: 8px; font-size: 14px; }
+.result-item .badge { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #edf2f7; color: #718096; }
+.info-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.info-header .sci-name { font-size: 24px; font-style: italic; font-weight: 600; color: #1a365d; }
+.info-header .zh-name { font-size: 20px; color: #e53e3e; font-weight: 500; }
+.info-header .tid { font-family: monospace; font-size: 14px; color: #718096; }
+.meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px; font-size: 14px; }
+.meta-item { }
+.meta-item .label { color: #a0aec0; font-size: 12px; text-transform: uppercase; }
+.meta-item .value { color: #2d3748; font-weight: 500; }
+.lineage-tree { font-family: 'Segoe UI', 'Microsoft YaHei', monospace; font-size: 15px; line-height: 1.8; padding: 12px 0; }
+.lineage-tree .lin { color: #4a5568; }
+.lineage-tree .lin .latin { font-style: italic; color: #2b6cb0; }
+.lineage-tree .lin .zh { color: #e53e3e; margin-left: 2px; }
+.lineage-tree .target .latin { font-weight: 700; font-size: 16px; }
+.lineage-tree .target .zh { font-weight: 700; font-size: 16px; }
+.lineage-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.lineage-table th { background: #edf2f7; padding: 8px 14px; text-align: left; font-weight: 600; color: #4a5568; }
+.lineage-table td { padding: 8px 14px; border-bottom: 1px solid #e2e8f0; }
+.lineage-table .latin { font-style: italic; color: #2b6cb0; }
+.lineage-table .zh { color: #e53e3e; }
+.lineage-table tr.target { background: #fffff0; font-weight: 700; }
+.names-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.names-list .tag { font-size: 12px; padding: 3px 10px; border-radius: 12px; background: #edf2f7; }
+.names-list .tag.sci { background: #c6f6d5; color: #22543d; }
+.names-list .tag.syn { background: #fed7d7; color: #742a2a; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.stat-card { background: #f7fafc; padding: 16px; border-radius: 10px; text-align: center; }
+.stat-card .num { font-size: 24px; font-weight: 700; color: #2b6cb0; }
+.stat-card .lbl { font-size: 12px; color: #a0aec0; margin-top: 4px; }
+.empty { text-align: center; padding: 40px; color: #a0aec0; }
+.empty .icon { font-size: 48px; margin-bottom: 12px; }
+.loading { text-align: center; padding: 20px; color: #718096; }
+.error { background: #fff5f5; color: #c53030; padding: 12px 20px; border-radius: 8px; border-left: 4px solid #fc8181; }
+.mode-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+.mode-tab { padding: 6px 16px; font-size: 13px; border: 1px solid #cbd5e0; background: #fff; border-radius: 8px 8px 0 0; cursor: pointer; }
+.mode-tab.active { background: #2b6cb0; color: #fff; border-color: #2b6cb0; }
+.breadcrumb { font-size: 13px; color: #a0aec0; margin-bottom: 12px; }
+.breadcrumb a { color: #2b6cb0; text-decoration: none; cursor: pointer; }
+.breadcrumb a:hover { text-decoration: underline; }
+.children-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
+.child-item { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: #f7fafc; border-radius: 8px; cursor: pointer; transition: background .1s; }
+.child-item:hover { background: #ebf8ff; }
+.child-item .cid { font-family: monospace; font-size: 12px; color: #718096; min-width: 55px; }
+.child-item .cname { font-style: italic; color: #2b6cb0; flex: 1; font-size: 14px; }
+.child-item .czh { font-size: 12px; color: #e53e3e; }
+.child-item .crank { font-size: 11px; color: #a0aec0; }
+.footer { text-align: center; padding: 20px; color: #a0aec0; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🧬 NCBI 物种分类查询系统</h1>
+  <p>支持中文名 / 拉丁学名 / TaxID 搜索 · 双语谱系显示 · 数据来源 NCBI Taxonomy Database</p>
+</div>
+
+<div class="container">
+  <!-- 搜索栏 -->
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="输入物种名称（中文/拉丁/英文）或 TaxID，如：人类、E. coli、9606..."
+           autofocus onkeydown="if(event.key==='Enter') doSearch()">
+    <button onclick="doSearch()">🔍 搜索</button>
+  </div>
+
+  <!-- 快捷入口 -->
+  <div class="quick-links">
+    <span>常用：</span>
+    <a onclick="quickLookup(9606)">智人</a>
+    <a onclick="quickLookup(562)">大肠杆菌</a>
+    <a onclick="quickLookup(3702)">拟南芥</a>
+    <a onclick="quickLookup(10090)">小鼠</a>
+    <a onclick="quickLookup(7955)">斑马鱼</a>
+    <a onclick="quickLookup(7227)">果蝇</a>
+    <a onclick="quickLookup(4932)">酿酒酵母</a>
+    <a onclick="quickLookup(6239)">秀丽线虫</a>
+    <a onclick="quickLookup(1280)">金葡菌</a>
+    <a onclick="quickLookup(10116)">大鼠</a>
+    <a onclick="quickLookup(4530)">水稻</a>
+    <a onclick="showStats()">📊 统计</a>
+  </div>
+
+  <!-- 主内容区 -->
+  <div id="mainContent">
+    <div class="empty">
+      <div class="icon">🔎</div>
+      <p>输入物种名称或 TaxID 开始查询</p>
+    </div>
+  </div>
+</div>
+
+<div class="footer">数据来源：NCBI Taxonomy Database · 共 2,831,117 个分类节点 · 中文翻译由系统词库补充</div>
+
+<script>
+const API = '';
+let currentView = '';
+
+async function api(path) {
+  const res = await fetch(API + path);
+  return res.json();
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── 搜索 ──
+async function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) return;
+
+  // 纯数字 → 直接看 info
+  if (/^\d+$/.test(q)) {
+    await showInfo(parseInt(q));
+    return;
+  }
+
+  showLoading('搜索中...');
+  const data = await api('/api/search?q=' + encodeURIComponent(q) + '&limit=30');
+  if (data.error) {
+    showError(data.error);
+    return;
+  }
+  if (data.results.length === 0) {
+    document.getElementById('mainContent').innerHTML =
+      '<div class="empty"><div class="icon">😕</div><p>未找到匹配「' + escapeHtml(q) + '」的结果</p>' +
+      '<p style="margin-top:8px;font-size:13px;">尝试使用拉丁学名或在词库中补充中文名</p></div>';
+    return;
+  }
+  if (data.results.length === 1) {
+    await showInfo(data.results[0].tax_id);
+    return;
+  }
+
+  // 多条结果 — 列表
+  let html = '<div class="card"><h3>搜索结果：' + escapeHtml(q) + '</h3><p style="color:#a0aec0;font-size:13px;margin-bottom:8px;">找到 ' + data.count + ' 条，点击查看详情</p>';
+  for (const r of data.results) {
+    html += '<div class="result-item" onclick="showInfo(' + r.tax_id + ')">' +
+      '<span class="id">' + r.tax_id + '</span>' +
+      '<span class="name"><i>' + escapeHtml(r.name) + '</i>' +
+      (r.zh_name ? '<span class="zh">' + escapeHtml(r.zh_name) + '</span>' : '') +
+      '</span>' +
+      '<span class="badge">' + escapeHtml(r.rank || '?') + '</span>' +
+      '</div>';
+  }
+  html += '</div>';
+  document.getElementById('mainContent').innerHTML = html;
+}
+
+// ── 信息卡 ──
+async function showInfo(taxId) {
+  showLoading('加载中...');
+  const data = await api('/api/info/' + taxId);
+  if (data.error) {
+    showError(data.error);
+    return;
+  }
+
+  currentView = 'info';
+  let html = '';
+
+  // 重定向提醒
+  if (data.redirected_from) {
+    html += '<div style="background:#fffff0;padding:8px 14px;border-radius:6px;margin-bottom:12px;font-size:13px;color:#975a16;">' +
+      '⚠ TaxID ' + data.redirected_from + ' 已合并为 ' + data.tax_id + '</div>';
+  }
+
+  // 标题
+  html += '<div class="card">';
+  html += '<div class="info-header">';
+  html += '<span class="sci-name"><i>' + escapeHtml(data.scientific_name) + '</i></span>';
+  if (data.zh_name) html += '<span class="zh-name">' + escapeHtml(data.zh_name) + '</span>';
+  html += '<span class="tid">TaxID: ' + data.tax_id + '</span>';
+  html += '</div>';
+
+  // meta
+  html += '<div class="meta-row">';
+  html += '<div class="meta-item"><div class="label">分类阶元</div><div class="value">' + escapeHtml(data.rank_cn) + ' (' + escapeHtml(data.rank) + ')</div></div>';
+  html += '<div class="meta-item"><div class="label">下级分类数</div><div class="value">' + data.children_count.toLocaleString() + '</div></div>';
+  if (data.ancestors.length > 0) {
+    const last = data.ancestors[data.ancestors.length-1];
+    html += '<div class="meta-item"><div class="label">上级分类</div><div class="value"><i>' + escapeHtml(last.name) + '</i></div></div>';
+  }
+  html += '</div>';
+
+  // 操作按钮
+  html += '<div style="margin-bottom:16px; display:flex; gap:8px;">';
+  html += '<button onclick="showChildren(' + data.tax_id + ')" style="padding:6px 14px;border:1px solid #cbd5e0;background:#fff;border-radius:6px;cursor:pointer;font-size:13px;">📋 查看下级分类 (' + data.children_count.toLocaleString() + ')</button>';
+  html += '<button onclick="showLineage(' + data.tax_id + ')" style="padding:6px 14px;border:1px solid #cbd5e0;background:#fff;border-radius:6px;cursor:pointer;font-size:13px;">🌳 谱系树</button>';
+  html += '</div>';
+
+  // 谱系表
+  html += '<h3 style="font-size:15px;color:#4a5568;margin-bottom:8px;">📊 分类谱系</h3>';
+  html += '<table class="lineage-table"><tr><th>阶元</th><th>拉丁学名</th><th>中文名称</th></tr>';
+  for (const a of data.ancestors) {
+    html += '<tr><td>' + escapeHtml(a.rank_cn || a.rank) + '</td>' +
+      '<td class="latin">' + escapeHtml(a.name) + '</td>' +
+      '<td class="zh">' + escapeHtml(a.zh_name || '—') + '</td></tr>';
+  }
+  // target
+  html += '<tr class="target"><td>' + escapeHtml(data.rank_cn) + '</td>' +
+    '<td class="latin">★ ' + escapeHtml(data.scientific_name) + '</td>' +
+    '<td class="zh">' + escapeHtml(data.zh_name || '') + '</td></tr>';
+  html += '</table>';
+
+  // 谱系树缩略
+  html += '<div class="lineage-tree" style="margin-top:12px;">';
+  for (let i=0; i<data.ancestors.length; i++) {
+    const a = data.ancestors[i];
+    html += '<div class="lin">' + '&nbsp;'.repeat(i*2) + (i===data.ancestors.length-1 ? '└─ ' : '├─ ') +
+      '<span class="latin">' + escapeHtml(a.name) + '</span>' +
+      (a.zh_name ? '<span class="zh">' + escapeHtml(a.zh_name) + '</span>' : '') +
+      ' <small style="color:#a0aec0">[' + escapeHtml(a.rank_cn || a.rank) + ']</small></div>';
+  }
+  const indent = data.ancestors.length;
+  html += '<div class="lin target">' + '&nbsp;'.repeat(indent*2) + '└─ ' +
+    '<span class="latin">' + escapeHtml(data.scientific_name) + '</span>' +
+    (data.zh_name ? '<span class="zh">' + escapeHtml(data.zh_name) + '</span>' : '') +
+    ' <small style="color:#a0aec0">[' + escapeHtml(data.rank_cn) + ']</small> ★</div>';
+  html += '</div>';
+
+  // 所有名称
+  if (data.all_names && data.all_names.length > 0) {
+    html += '<div style="margin-top:16px;"><h3 style="font-size:15px;color:#4a5568;margin-bottom:6px;">🏷 所有名称</h3>';
+    html += '<div class="names-list">';
+    for (const n of data.all_names.slice(0, 20)) {
+      const cls = n.class.includes('scientific') ? 'sci' : (n.class.includes('synonym') ? 'syn' : '');
+      html += '<span class="tag ' + cls + '">' + escapeHtml(n.name) + ' <small>[' + escapeHtml(n.class) + ']</small></span>';
+    }
+    html += '</div></div>';
+  }
+
+  html += '</div>'; // card
+  document.getElementById('mainContent').innerHTML = html;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── 谱系树 ──
+async function showLineage(taxId) {
+  showLoading('加载中...');
+  const data = await api('/api/info/' + taxId);
+  if (data.error) { showError(data.error); return; }
+
+  let html = '<div class="card">';
+  html += '<div class="breadcrumb"><a onclick="showInfo(' + taxId + ')">← 返回信息卡</a></div>';
+  html += '<h3>🌳 分类谱系树：<i>' + escapeHtml(data.scientific_name) + '</i>' +
+    (data.zh_name ? ' <span style="color:#e53e3e">' + escapeHtml(data.zh_name) + '</span>' : '') + '</h3>';
+
+  html += '<div class="lineage-tree" style="font-size:16px; padding:16px;">';
+  for (let i=0; i<data.ancestors.length; i++) {
+    const a = data.ancestors[i];
+    const pre = '&nbsp;&nbsp;'.repeat(i);
+    html += '<div class="lin">' + pre + '├─ <span class="latin" style="cursor:pointer" onclick="showInfo(' + a.tax_id + ')" title="查看详情">' + escapeHtml(a.name) + '</span>' +
+      (a.zh_name ? ' <span class="zh">' + escapeHtml(a.zh_name) + '</span>' : '') +
+      ' <small style="color:#a0aec0">' + escapeHtml(a.rank_cn || a.rank) + '</small></div>';
+  }
+  const pre2 = '&nbsp;&nbsp;'.repeat(data.ancestors.length);
+  html += '<div class="lin target">' + pre2 + '└─ <span class="latin">' + escapeHtml(data.scientific_name) + '</span>' +
+    (data.zh_name ? ' <span class="zh">' + escapeHtml(data.zh_name) + '</span>' : '') +
+    ' <small style="color:#a0aec0">' + escapeHtml(data.rank_cn) + '</small> ★ 当前</div>';
+  html += '</div></div>';
+
+  document.getElementById('mainContent').innerHTML = html;
+}
+
+// ── 子节点 ──
+async function showChildren(taxId) {
+  showLoading('加载中...');
+  const [info, children] = await Promise.all([
+    api('/api/info/' + taxId),
+    api('/api/children/' + taxId + '?limit=200')
+  ]);
+
+  if (info.error) { showError(info.error); return; }
+
+  let html = '<div class="card">';
+  html += '<div class="breadcrumb"><a onclick="showInfo(' + taxId + ')">← 返回信息卡</a></div>';
+  html += '<h3>📋 <i>' + escapeHtml(info.scientific_name) + '</i> 的下级分类' +
+    (info.zh_name ? ' (' + escapeHtml(info.zh_name) + ')' : '') +
+    ' <span style="font-weight:400;font-size:14px;color:#a0aec0;">共 ' + children.length + ' 个</span></h3>';
+
+  if (children.length === 0) {
+    html += '<div class="empty"><p>该节点无下级分类</p></div>';
+  } else {
+    html += '<div class="children-grid">';
+    for (const c of children) {
+      html += '<div class="child-item" onclick="showInfo(' + c.tax_id + ')" title="TaxID: ' + c.tax_id + '">' +
+        '<span class="cid">' + c.tax_id + '</span>' +
+        '<span class="cname">' + escapeHtml(c.name) + '</span>' +
+        (c.zh_name ? '<span class="czh">' + escapeHtml(c.zh_name) + '</span>' : '') +
+        '<span class="crank">' + escapeHtml(c.rank_cn || c.rank) + '</span>' +
+        '</div>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  document.getElementById('mainContent').innerHTML = html;
+}
+
+// ── 统计 ──
+async function showStats() {
+  showLoading('加载中...');
+  const data = await api('/api/stats');
+  let html = '<div class="card">';
+  html += '<h3>📊 数据库统计</h3>';
+  html += '<div class="stats-grid">';
+  html += statCard('分类节点', data.nodes);
+  html += statCard('名称条目', data.names);
+  html += statCard('谱系记录', data.lineage);
+  html += statCard('合并节点', data.merged_ids);
+  html += statCard('删除节点', data.deleted_ids);
+  html += statCard('中文词库', data.extra_zh);
+  html += '</div>';
+
+  if (data.ranks) {
+    html += '<h4 style="margin-top:20px;color:#4a5568;">阶元分布 Top 15</h4>';
+    html += '<table class="lineage-table"><tr><th>阶元</th><th>中文</th><th>数量</th></tr>';
+    for (const r of data.ranks) {
+      html += '<tr><td>' + escapeHtml(r.rank) + '</td><td>' + escapeHtml(r.cn) + '</td><td style="text-align:right">' + r.count.toLocaleString() + '</td></tr>';
+    }
+    html += '</table>';
+  }
+
+  html += '</div>';
+  document.getElementById('mainContent').innerHTML = html;
+}
+
+// ── 快捷 ──
+function quickLookup(id) { document.getElementById('searchInput').value = id; showInfo(id); }
+
+function showLoading(msg) {
+  document.getElementById('mainContent').innerHTML = '<div class="loading">⏳ ' + msg + '</div>';
+}
+
+function showError(msg) {
+  document.getElementById('mainContent').innerHTML = '<div class="error">' + escapeHtml(msg) + '</div>';
+}
+
+function statCard(label, num) {
+  return '<div class="stat-card"><div class="num">' + (num||0).toLocaleString() + '</div><div class="lbl">' + label + '</div></div>';
+}
+</script>
+</body>
+</html>
