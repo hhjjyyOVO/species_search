@@ -31,9 +31,11 @@ export TAXONOMY_DB=~/data/taxonomy.db
 | 命令 | 说明 | 示例 |
 |------|------|------|
 | `/species <名称>` | 按名称或 TaxID 查询 | `/species 人类` |
-| `/species lineage <名称>` | 完整分类谱系 | `/species lineage 9606` |
-| `/species children <名称>` | 直接子节点 | `/species children 人属` |
-| `/species stats` | 数据库统计 | `/species stats` |
+| `/lineage <名称>` | 完整分类谱系 | `/lineage 9606` |
+| `/children <名称>` | 直接子节点 | `/children 人属` |
+| `/taxonomy_stats` | 数据库统计 | `/taxonomy_stats` |
+
+也支持自然语言提问，如「人类是什么物种」「查一下大肠杆菌的分类」。
 
 ## 数据来源
 

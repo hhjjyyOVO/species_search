@@ -188,50 +188,54 @@ class SpeciesPlugin(Star):
         yield event.plain_result(json.dumps(result, ensure_ascii=False))
 
     # ═══════════════════════════════════════════════════════
-    #  Commands — 显式 /species 命令
+    #  Commands — 显式命令
     # ═══════════════════════════════════════════════════════
 
-    @filter.command_group("species")
+    @filter.command("species")
     async def species_cmd(self, event: AstrMessageEvent):
+        '''查询物种分类信息。用法: /species <名称或tax_id>'''
         msg = event.message_str.strip()
         parts = msg.split(maxsplit=1)
 
         if len(parts) < 2 or parts[1].strip() in ("help", "帮助"):
             yield event.plain_result(
                 "🌿 物种查询命令：\n"
-                "/species <名称>         — 查询物种信息\n"
-                "/species lineage <名称>  — 完整分类谱系\n"
-                "/species children <名称> — 直接子节点\n"
-                "/species stats          — 数据库统计\n\n"
-                "也可以直接用自然语言问我，如「查一下人类」「大肠杆菌是什么物种」"
+                "/species <名称>       — 查询物种信息\n"
+                "/lineage <名称>       — 完整分类谱系\n"
+                "/children <名称>      — 直接子节点\n"
+                "/taxonomy_stats       — 数据库统计\n\n"
+                "也可以直接用自然语言问我，如「人类是什么物种」"
             )
             return
 
-        sub = parts[1].strip()
-        yield await self._do_query(event, sub)
+        keyword = parts[1].strip()
+        yield await self._do_query(event, keyword)
 
-    @species_cmd.subcommand("lineage")
+    @filter.command("lineage")
     async def species_lineage_cmd(self, event: AstrMessageEvent):
+        '''查询物种完整分类谱系。用法: /lineage <名称或tax_id>'''
         msg = event.message_str.strip()
-        parts = msg.split(maxsplit=2)
-        keyword = parts[2].strip() if len(parts) > 2 else ""
+        parts = msg.split(maxsplit=1)
+        keyword = parts[1].strip() if len(parts) > 1 else ""
         if not keyword:
-            yield event.plain_result("用法: /species lineage <名称或tax_id>")
+            yield event.plain_result("用法: /lineage <名称或tax_id>")
             return
         yield await self._do_lineage(event, keyword)
 
-    @species_cmd.subcommand("children")
+    @filter.command("children")
     async def species_children_cmd(self, event: AstrMessageEvent):
+        '''列出分类节点下的子节点。用法: /children <名称或tax_id>'''
         msg = event.message_str.strip()
-        parts = msg.split(maxsplit=2)
-        keyword = parts[2].strip() if len(parts) > 2 else ""
+        parts = msg.split(maxsplit=1)
+        keyword = parts[1].strip() if len(parts) > 1 else ""
         if not keyword:
-            yield event.plain_result("用法: /species children <名称或tax_id>")
+            yield event.plain_result("用法: /children <名称或tax_id>")
             return
         yield await self._do_children(event, keyword)
 
-    @species_cmd.subcommand("stats")
+    @filter.command("taxonomy_stats")
     async def species_stats_cmd(self, event: AstrMessageEvent):
+        '''NCBI 物种数据库统计。'''
         yield await self._do_stats(event)
 
     # ═══════════════════════════════════════════════════════
