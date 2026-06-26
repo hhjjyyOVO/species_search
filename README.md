@@ -25,7 +25,7 @@
 
 ## 模块安装
 
-> 将 `USER/species` 替换为实际 GitHub 仓库路径。`taxonomy/` 可放到任意目录（如 `~/apps/taxonomy/`），其余模块通过路径配置找到它。
+> `taxonomy/` 可放到任意目录（如 `~/apps/taxonomy/`），其余模块通过路径配置找到它。
 
 ### ① 主程序 taxonomy/
 
@@ -33,7 +33,7 @@
 
 ```bash
 # 下载
-# → https://download-directory.github.io/?url=https://github.com/USER/species/tree/main/taxonomy
+# → https://download-directory.github.io/?url=https://github.com/hhjjyyOVO/species_search/tree/main/taxonomy
 # 解压到任意目录，如 ~/apps/taxonomy/
 
 # 下载 NCBI 数据
@@ -53,7 +53,7 @@ python -m taxonomy search-zh "大肠杆菌"
 
 ```bash
 # 下载 webui/
-# → https://download-directory.github.io/?url=https://github.com/USER/species/tree/main/webui
+# → https://download-directory.github.io/?url=https://github.com/hhjjyyOVO/species_search/tree/main/webui
 # 解压到任意目录
 
 # 配置路径（二选一）
@@ -74,7 +74,7 @@ python server.py                         # → http://127.0.0.1:8520
 
 ```bash
 # 下载 skill/
-# → https://download-directory.github.io/?url=https://github.com/USER/species/tree/main/skill
+# → https://download-directory.github.io/?url=https://github.com/hhjjyyOVO/species_search/tree/main/skill
 # 将 species.md 放入目标项目的 .claude/skills/
 
 # 配置环境变量（在 ~/.bashrc 或 IDE 设置中）
@@ -93,7 +93,7 @@ export TAXONOMY_DB=~/data/taxonomy.db
 
 ```bash
 # 下载 astrbot/
-# → https://download-directory.github.io/?url=https://github.com/USER/species/tree/main/astrbot/astrbot_plugin_species
+# → https://download-directory.github.io/?url=https://github.com/hhjjyyOVO/species_search/tree/main/astrbot/astrbot_plugin_species
 # 放入 AstrBot 的 data/plugins/ 目录
 
 # 在 AstrBot WebUI 中配置插件：
@@ -104,13 +104,13 @@ export TAXONOMY_DB=~/data/taxonomy.db
 
 | 文件 | 下载方式 |
 |------|----------|
-| `astrbot_plugin_species/` | [下载 zip](https://download-directory.github.io/?url=https://github.com/USER/species/tree/main/astrbot/astrbot_plugin_species) → 放入 `data/plugins/` |
+| `astrbot_plugin_species/` | [下载 zip](https://download-directory.github.io/?url=https://github.com/hhjjyyOVO/species_search/tree/main/astrbot/astrbot_plugin_species) → 放入 `data/plugins/` |
 
 ### ⑤ 全量克隆（一键体验）
 
 ```bash
-git clone https://github.com/USER/species.git
-cd species
+git clone https://github.com/hhjjyyOVO/species_search.git
+cd species_search
 # 下载 new_taxdump.zip 解压到 new_taxdump/
 ./start.sh            # DB 缺失自动构建，之后即开即用
 ```

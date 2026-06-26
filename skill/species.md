@@ -102,22 +102,22 @@ python -m taxonomy stats                           # 统计信息
 
 ### 方式一：克隆完整项目
 ```bash
-git clone https://github.com/USER/species.git
-cd species
+git clone https://github.com/hhjjyyOVO/species_search.git
+cd species_search
 # 下载 new_taxdump.zip 解压到 new_taxdump/，首次运行自动构建
 ```
 
 ### 方式二：仅安装 Skill（不下完整仓库）
 1. 下载本文件到 `.claude/skills/species.md`
 2. 下载 `taxonomy/` 目录：
-   → https://download-directory.github.io/?url=https://github.com/USER/species/tree/main/taxonomy
+   → https://download-directory.github.io/?url=https://github.com/hhjjyyOVO/species_search/tree/main/taxonomy
 3. 解压到项目根目录，下载 NCBI 数据，首次运行自动构建
 4. 重启 Claude Code 会话
 
 ### 方式三：仅使用 WebUI
 1. 下载 `taxonomy/` + `webui/` 目录：
-   → https://download-directory.github.io/?url=https://github.com/USER/species/tree/main/taxonomy
-   → https://download-directory.github.io/?url=https://github.com/USER/species/tree/main/webui
+   → https://download-directory.github.io/?url=https://github.com/hhjjyyOVO/species_search/tree/main/taxonomy
+   → https://download-directory.github.io/?url=https://github.com/hhjjyyOVO/species_search/tree/main/webui
 2. 下载 NCBI 数据，首次运行自动构建
 3. `python webui/server.py` → http://127.0.0.1:8520
 

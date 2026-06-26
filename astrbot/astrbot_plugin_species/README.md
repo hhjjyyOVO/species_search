@@ -7,7 +7,7 @@
 ### 依赖
 
 - 本插件（放入 AstrBot 的 `data/plugins/` 目录）
-- [taxonomy/](https://github.com/USER/species/tree/main/taxonomy) Python 包（NCBI 分类查询引擎）
+- [taxonomy/](https://github.com/hhjjyyOVO/species_search/tree/main/taxonomy) Python 包（NCBI 分类查询引擎）
 - `taxonomy.db` 数据库（首次运行自动构建，约 2.7GB）
 
 ### 步骤
