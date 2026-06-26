@@ -4,8 +4,12 @@ import os
 
 # ── 路径常量 ──────────────────────────────────────────────
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_DUMP_DIR = os.path.join(PROJECT_ROOT, "new_taxdump")
-DEFAULT_DB_PATH = os.path.join(PROJECT_ROOT, "taxonomy.db")
+
+# 环境变量可覆盖默认路径，支持 taxonomy/ 安装到任意目录
+#   TAXONOMY_DB   — taxonomy.db 数据库路径
+#   TAXONOMY_DUMP — new_taxdump/ dump 目录路径
+DEFAULT_DUMP_DIR = os.environ.get("TAXONOMY_DUMP") or os.path.join(PROJECT_ROOT, "new_taxdump")
+DEFAULT_DB_PATH   = os.environ.get("TAXONOMY_DB")   or os.path.join(PROJECT_ROOT, "taxonomy.db")
 
 SCHEMA_VERSION = 2
 

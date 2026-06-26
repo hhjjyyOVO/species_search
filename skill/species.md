@@ -1,8 +1,22 @@
 # /species — NCBI 物种分类查询 Skill
 
-> **这是独立下载版 Skill 文件。** 将此文件放入任意项目的 `.claude/skills/` 目录即可启用 `/species` 命令。
+> 将此文件放入任意项目的 `.claude/skills/` 目录即可启用 `/species` 命令。
 >
-> 前提：项目中需同时包含 `taxonomy/` Python 包和 `taxonomy.db` 数据库文件。
+> 需要 `taxonomy/` Python 包 + `taxonomy.db`。taxonomy 可安装到任意目录，通过环境变量配置路径。
+
+## 路径配置
+
+主程序 `taxonomy/` 可安装到任意目录，通过以下方式让 skill 找到它：
+
+| 变量 | 作用 | 示例 |
+|------|------|------|
+| `TAXONOMY_HOME` | taxonomy/ 包的**上级目录**（即 `python -m taxonomy` 执行目录） | `~/apps/species` |
+| `TAXONOMY_DB` | taxonomy.db 数据库路径 | `~/data/taxonomy.db` |
+| `TAXONOMY_DUMP` | new_taxdump/ dump 目录 | `~/data/new_taxdump` |
+
+> `TAXONOMY_HOME` 需包含 `taxonomy/` 子目录。例如 taxonomy 包在 `~/apps/species/taxonomy/`，则 `TAXONOMY_HOME=~/apps/species`。
+
+不设置则默认使用当前项目根目录的相对路径（全量克隆场景零配置）。
 
 ## 可用命令
 
@@ -59,43 +73,52 @@
 
 ## 底层调用
 
-所有命令通过 `python -m taxonomy` 执行，数据库默认路径：
-- `./taxonomy.db`（项目根目录下）
+所有命令通过 `python -m taxonomy` 执行，数据库默认路径 `./taxonomy.db`。
 
 JSON 模式（程序化使用）：在命令后加 `--json`
 
 ```bash
-# 构建数据库（项目根目录执行）
-python -m taxonomy build
-
-# 查询
-python -m taxonomy info <tax_id>
-python -m taxonomy search "<keyword>"
-python -m taxonomy search-zh "<中文关键词>"
-python -m taxonomy lineage <tax_id> --format tree
-python -m taxonomy children <tax_id>
-python -m taxonomy stats
+python -m taxonomy build                           # 构建数据库
+python -m taxonomy info <tax_id>                   # 查询详情
+python -m taxonomy search "<keyword>"              # 学名搜索
+python -m taxonomy search-zh "<中文关键词>"        # 中文搜索
+python -m taxonomy lineage <tax_id> --format tree  # 分类谱系
+python -m taxonomy children <tax_id>               # 子节点
+python -m taxonomy stats                           # 统计信息
 ```
+
+## 数据准备
+
+从以下任一地址下载 `new_taxdump.zip`：
+
+| 来源 | 地址 |
+|------|------|
+| NCBI 官方 | https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/new_taxdump/ |
+| CNGB 国内镜像 | https://ftp.cngb.org/pub/ncbi/taxonomy/ |
+
+解压到项目根目录下的 `new_taxdump/` 文件夹，首次运行时自动构建数据库（约 2 分钟）。
 
 ## 安装方法
 
 ### 方式一：克隆完整项目
 ```bash
-git clone <repo-url>
+git clone https://github.com/USER/species.git
 cd species
-# 下载 NCBI 数据后构建数据库
-python -m taxonomy build
+# 下载 new_taxdump.zip 解压到 new_taxdump/，首次运行自动构建
 ```
 
-### 方式二：仅安装 Skill
-1. 将本文件 (`species_skill.md`) 复制到你的项目 `.claude/skills/` 目录
-2. 将 `taxonomy/` 目录复制到你的项目根目录
-3. 下载 NCBI 数据并运行 `python -m taxonomy build`
+### 方式二：仅安装 Skill（不下完整仓库）
+1. 下载本文件到 `.claude/skills/species.md`
+2. 下载 `taxonomy/` 目录：
+   → https://download-directory.github.io/?url=https://github.com/USER/species/tree/main/taxonomy
+3. 解压到项目根目录，下载 NCBI 数据，首次运行自动构建
 4. 重启 Claude Code 会话
 
 ### 方式三：仅使用 WebUI
-1. 复制 `webui/` 和 `taxonomy/` 目录
-2. 确保 `taxonomy.db` 在项目根目录
+1. 下载 `taxonomy/` + `webui/` 目录：
+   → https://download-directory.github.io/?url=https://github.com/USER/species/tree/main/taxonomy
+   → https://download-directory.github.io/?url=https://github.com/USER/species/tree/main/webui
+2. 下载 NCBI 数据，首次运行自动构建
 3. `python webui/server.py` → http://127.0.0.1:8520
 
 ## 已知物种参考

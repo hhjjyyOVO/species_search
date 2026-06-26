@@ -9,7 +9,9 @@ if not exist "taxonomy.db" (
     python -m taxonomy build
     if errorlevel 1 (
         echo.
-        echo [X] 数据库构建失败，请检查 new_taxdump 目录是否存在
+        echo [X] 数据库构建失败，请确认 new_taxdump 目录包含 NCBI dump 文件
+    echo     下载: https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/new_taxdump/
+    echo     镜像: https://ftp.cngb.org/pub/ncbi/taxonomy/
         pause
         exit /b 1
     )

@@ -4,35 +4,30 @@
 
 ## 前置条件
 
-此 skill 需要以下组件在项目中可用：
-- `taxonomy/` Python 包（CLI 查询引擎）
-- `taxonomy.db` SQLite 数据库（由 `python -m taxonomy build` 生成）
-- `new_taxdump/` NCBI 原始 dump 文件（从 NCBI FTP 下载）
+- `taxonomy/` Python 包
+- `new_taxdump/` NCBI dump（[NCBI](https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/new_taxdump/) / [CNGB镜像](https://ftp.cngb.org/pub/ncbi/taxonomy/)）
+- `taxonomy.db` 首次运行自动构建（约 2 分钟）
 
 ## 工作流
 
-当用户调用 `/species` 时：
-
-1. 解析输入：纯数字 → tax_id；含中文 → 搜 extra_zh 词典，不命中则翻译后查拉丁；英文/拉丁 → 直接搜索
-2. 调用 `python -m taxonomy` 命令在当前项目根目录下执行
-3. 展示结果，数据库缺失的中文名由 Claude 生物学知识补全
+0. 如设置了 `TAXONOMY_HOME` 则先 `cd $TAXONOMY_HOME`，确保 Python 能找到 taxonomy 包
+1. 解析：纯数 → tax_id；中文 → 先 extra_zh 再翻译；拉丁/英文 → 直接搜索
+2. 缺失中文名由 Claude 补全，`--json` 输出 JSON
 
 ## 命令映射
 
+> 如设置了 `TAXONOMY_HOME`，命令在该目录执行。`TAXONOMY_DB` / `TAXONOMY_DUMP` 通过环境变量自动生效。
+
 ### `/species build`
-重建数据库：
 ```bash
 python -m taxonomy build
 ```
 
-### `/species <名称>` — 按名称查物种
-示例: `/species 人类`  `/species E. coli`  `/species 拟南芥`
-
+### `/species <名称>`
 - 纯数字 → `python -m taxonomy info <id>`
-- 含中文 → `python -m taxonomy search-zh "<名称>"`，无结果则翻译后 `python -m taxonomy search "<拉丁名>"`
+- 含中文 → `python -m taxonomy search-zh "<名称>"`，无结果译后 `python -m taxonomy search "<拉丁名>"`
 - 英文/拉丁 → `python -m taxonomy search "<名称>"`
-- 取第一个匹配 tax_id，执行 `python -m taxonomy info <tax_id>`
-- 多条匹配列出前 5 条供用户选择
+- 取第一个匹配 `python -m taxonomy info <tax_id>`；多条列出前 5 条
 
 ### `/species id <tax_id>`
 ```bash
@@ -54,13 +49,8 @@ python -m taxonomy children <tax_id> --limit 50
 python -m taxonomy stats
 ```
 
-## 输出处理
+## 路径
 
-- 命令行输出直接展示；缺失中文名由 Claude 生物学知识补全
-- 加 `--json` 输出 JSON 格式
-
-## 路径约定
-
-- 命令在项目根目录（含 `taxonomy/` 包 + `taxonomy.db`）执行
-- 数据库默认 `./taxonomy.db`，可通过 `--db` 覆盖
-- dump 目录默认 `./new_taxdump/`，可通过 `--dump-dir` 覆盖
+- 默认：项目根目录，`./taxonomy.db`，`--db` 覆盖
+- 模块化：设置 `TAXONOMY_HOME` / `TAXONOMY_DB` / `TAXONOMY_DUMP` 环境变量
+- 未设置时使用默认相对路径（全量克隆零配置）

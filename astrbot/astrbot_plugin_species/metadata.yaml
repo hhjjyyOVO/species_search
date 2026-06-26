@@ -1,0 +1,11 @@
+name: astrbot_plugin_species
+author: hhjjyyOVO
+desc: NCBI 物种分类查询插件，支持中文名/拉丁学名/TaxID 搜索，输出双语分类谱系
+version: "1.0.0"
+display_name: 物种查询助手
+short_desc: QQ 内查物种分类信息
+astrbot_version: ">=4.16,<5"
+support_platforms:
+  - aiocqhttp
+  - telegram
+  - wecom

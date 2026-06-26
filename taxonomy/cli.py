@@ -18,16 +18,17 @@ def main():
     parser = argparse.ArgumentParser(
         prog="taxonomy",
         description="NCBI 物种分类查询系统",
+        epilog="环境变量: TAXONOMY_DB | TAXONOMY_DUMP | TAXONOMY_HOME",
     )
     parser.add_argument("--db", default=None,
-                        help="SQLite 数据库路径 (默认: 项目根目录/taxonomy.db)")
+                        help="SQLite 数据库路径 (默认: $TAXONOMY_DB 或 ./taxonomy.db)")
+    parser.add_argument("--dump-dir", default=None,
+                        help="dump 目录路径 (默认: $TAXONOMY_DUMP 或 ./new_taxdump/)")
 
     sub = parser.add_subparsers(dest="cmd", help="可用命令")
 
     # ── build ──
     p_build = sub.add_parser("build", help="构建/重建数据库")
-    p_build.add_argument("--dump-dir", default=None,
-                         help=f"dump 文件目录 (默认: {DEFAULT_DUMP_DIR})")
 
     # ── lookup ──
     p_lookup = sub.add_parser("lookup", help="按 tax_id 查找节点")
@@ -99,11 +100,20 @@ def main():
             print(f"构建失败: {e}")
             return 1
 
-    # ── 检查数据库 ──
+    # ── 数据库缺失时自动构建 ──
     if not os.path.isfile(db_path):
-        print(f"错误: 数据库不存在 ({db_path})")
-        print(f"请先运行: taxonomy build")
-        return 1
+        print("[!] 数据库不存在，正在自动构建（约 2 分钟）...")
+        dump_dir = DEFAULT_DUMP_DIR
+        builder = TaxonomyBuilder(dump_dir=dump_dir, db_path=db_path)
+        try:
+            builder.build()
+            print("[OK] 数据库构建完成\n")
+        except Exception as e:
+            print(f"[X] 构建失败: {e}")
+            print("   请确认 new_taxdump/ 目录已包含 NCBI dump 文件")
+            print("   下载: https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/new_taxdump/")
+            print("   镜像: https://ftp.cngb.org/pub/ncbi/taxonomy/")
+            return 1
 
     engine = TaxonomyQueryEngine(db_path)
     try:

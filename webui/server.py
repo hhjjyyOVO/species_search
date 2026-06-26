@@ -2,6 +2,15 @@
 NCBI Taxonomy Web 查询界面
 纯标准库实现：http.server + sqlite3 + json
 启动后浏览器访问 http://localhost:8520
+
+用法:
+  python server.py                          # 自动查找 taxonomy/
+  python server.py --db /path/to/taxonomy.db
+  python server.py --taxonomy-path /path/to/taxonomy_dir
+
+环境变量:
+  TAXONOMY_DB    — 数据库路径
+  TAXONOMY_HOME  — taxonomy/ 包所在目录
 """
 
 import json
@@ -9,16 +18,42 @@ import os
 import sys
 import sqlite3
 import re
+import argparse
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, unquote
 
-# 将项目根目录加入 sys.path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from taxonomy.config import DEFAULT_DB_PATH, RANK_CN, EXTRA_ZH
-from taxonomy.utils import contains_cjk
-
-DB_PATH = DEFAULT_DB_PATH
 STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# ── 延迟导入 taxonomy（等 CLI 参数 / 环境变量确定路径）─────
+DB_PATH = None
+RANK_CN = {}
+EXTRA_ZH = {}
+contains_cjk = lambda x: False
+TaxonomyBuilder = None
+
+
+def _init_taxonomy(tax_home=None, db_path=None):
+    """初始化 taxonomy 模块。tax_home 为 taxonomy/ 包所在目录。"""
+    global DB_PATH, RANK_CN, EXTRA_ZH, contains_cjk, TaxonomyBuilder
+
+    if tax_home is None:
+        tax_home = os.environ.get(
+            "TAXONOMY_HOME",
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
+    tax_home = os.path.abspath(tax_home)
+    if tax_home not in sys.path:
+        sys.path.insert(0, tax_home)
+
+    import taxonomy.config
+    import taxonomy.utils
+    import taxonomy.builder
+
+    RANK_CN = taxonomy.config.RANK_CN
+    EXTRA_ZH = taxonomy.config.EXTRA_ZH
+    contains_cjk = taxonomy.utils.contains_cjk
+    TaxonomyBuilder = taxonomy.builder.TaxonomyBuilder
+    DB_PATH = db_path or taxonomy.config.DEFAULT_DB_PATH
 
 
 def get_conn():
@@ -379,12 +414,47 @@ class RequestHandler(BaseHTTPRequestHandler):
 
 
 def main():
-    if not os.path.isfile(DB_PATH):
-        print(f"错误: 数据库不存在 ({DB_PATH})")
-        print("请先运行: python -m taxonomy build")
-        return 1
+    global DB_PATH
 
-    port = 8520
+    # ── 解析 CLI 参数 ──
+    parser = argparse.ArgumentParser(
+        description="NCBI Taxonomy Web 查询界面",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""示例:
+  python server.py
+  python server.py --db /data/taxonomy.db
+  python server.py --taxonomy-path ~/apps/taxonomy --db ~/data/taxonomy.db
+
+环境变量:
+  TAXONOMY_DB    数据库路径
+  TAXONOMY_HOME   taxonomy/ 包所在目录
+  TAXONOMY_DUMP   new_taxdump/ dump 目录""",
+    )
+    parser.add_argument("--db", default=None, help="taxonomy.db 路径")
+    parser.add_argument("--taxonomy-path", default=None,
+                        help="taxonomy/ 包所在目录")
+    parser.add_argument("--port", type=int, default=8520, help="HTTP 端口 (默认 8520)")
+    args = parser.parse_args()
+
+    # ── 初始化 taxonomy（CLI 参数优先于环境变量）───────────
+    _init_taxonomy(tax_home=args.taxonomy_path, db_path=args.db)
+
+    # ── 首次自动构建 ──
+    if not os.path.isfile(DB_PATH):
+        print("[!] 数据库不存在，正在进行首次构建（约 2 分钟）...")
+        try:
+            builder = TaxonomyBuilder(db_path=DB_PATH)
+            builder.build()
+            print("[OK] 数据库构建完成\n")
+        except Exception as e:
+            print(f"[X] 数据库构建失败: {e}")
+            print("   请确认 new_taxdump/ 目录已包含 NCBI dump 文件")
+            print("   下载: https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/new_taxdump/")
+            print("   镜像: https://ftp.cngb.org/pub/ncbi/taxonomy/")
+            return 1
+
+    # ── 启动 ──
+    port = args.port
     server = HTTPServer(("127.0.0.1", port), RequestHandler)
     url = f"http://127.0.0.1:{port}"
     print(f"""
@@ -395,7 +465,6 @@ def main():
 ║  按 Ctrl+C 停止服务器                          ║
 ╚══════════════════════════════════════════════╝
 """)
-    # 自动打开浏览器
     import webbrowser
     webbrowser.open(url)
     try:
