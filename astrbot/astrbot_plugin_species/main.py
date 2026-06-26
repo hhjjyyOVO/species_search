@@ -68,15 +68,13 @@ class SpeciesPlugin(Star):
             name(string): 物种名称（中文如"人类"、拉丁如"Homo sapiens"）或纯数字 TaxID
         '''
         if not self.engine:
-            yield event.plain_result(json.dumps({"error": "数据库未连接"}, ensure_ascii=False))
-            return
+            return json.dumps({"error": "数据库未连接"}, ensure_ascii=False)
 
         tid = self._resolve_name(name)
         if tid is None:
-            # 模糊搜索 — 返回候选列表
             results = self._search_multi(name, limit=8)
             if results:
-                yield event.plain_result(json.dumps({
+                return json.dumps({
                     "type": "candidates",
                     "query": name,
                     "count": len(results),
@@ -89,17 +87,14 @@ class SpeciesPlugin(Star):
                         for r in results
                     ],
                     "hint": "请用户选择具体条目，然后用 query_species_by_id 查询"
-                }, ensure_ascii=False))
-            else:
-                yield event.plain_result(json.dumps({"type": "not_found", "query": name}, ensure_ascii=False))
-            return
+                }, ensure_ascii=False)
+            return json.dumps({"type": "not_found", "query": name}, ensure_ascii=False)
 
         info = self.engine.get_info(tid)
         if info is None:
-            yield event.plain_result(json.dumps({"type": "not_found", "tax_id": tid}, ensure_ascii=False))
-            return
+            return json.dumps({"type": "not_found", "tax_id": tid}, ensure_ascii=False)
 
-        yield event.plain_result(json.dumps(self._info_to_dict(info), ensure_ascii=False))
+        return json.dumps(self._info_to_dict(info), ensure_ascii=False)
 
     @filter.llm_tool(name="query_species_by_id")
     async def query_species_by_id(self, event: AstrMessageEvent, tax_id: int) -> str:
@@ -109,20 +104,17 @@ class SpeciesPlugin(Star):
             tax_id(number): NCBI Taxonomy ID
         '''
         if not self.engine:
-            yield event.plain_result(json.dumps({"error": "数据库未连接"}, ensure_ascii=False))
-            return
+            return json.dumps({"error": "数据库未连接"}, ensure_ascii=False)
 
         tid = self.engine.resolve(tax_id)
         if tid is None:
-            yield event.plain_result(json.dumps({"type": "not_found", "tax_id": tax_id}, ensure_ascii=False))
-            return
+            return json.dumps({"type": "not_found", "tax_id": tax_id}, ensure_ascii=False)
 
         info = self.engine.get_info(tid)
         if info is None:
-            yield event.plain_result(json.dumps({"type": "not_found", "tax_id": tid}, ensure_ascii=False))
-            return
+            return json.dumps({"type": "not_found", "tax_id": tid}, ensure_ascii=False)
 
-        yield event.plain_result(json.dumps(self._info_to_dict(info), ensure_ascii=False))
+        return json.dumps(self._info_to_dict(info), ensure_ascii=False)
 
     @filter.llm_tool(name="species_lineage")
     async def species_lineage(self, event: AstrMessageEvent, name: str) -> str:
@@ -132,18 +124,15 @@ class SpeciesPlugin(Star):
             name(string): 物种名称或 TaxID
         '''
         if not self.engine:
-            yield event.plain_result(json.dumps({"error": "数据库未连接"}, ensure_ascii=False))
-            return
+            return json.dumps({"error": "数据库未连接"}, ensure_ascii=False)
 
         tid = self._resolve_name(name)
         if tid is None:
-            yield event.plain_result(json.dumps({"type": "not_found", "query": name}, ensure_ascii=False))
-            return
+            return json.dumps({"type": "not_found", "query": name}, ensure_ascii=False)
 
         info = self.engine.get_info(tid)
         if info is None:
-            yield event.plain_result(json.dumps({"type": "not_found", "tax_id": tid}, ensure_ascii=False))
-            return
+            return json.dumps({"type": "not_found", "tax_id": tid}, ensure_ascii=False)
 
         lineage = []
         for a in info.get("ancestors", []):
@@ -162,14 +151,13 @@ class SpeciesPlugin(Star):
             "rank": info.get("rank_cn", info.get("rank", "")),
             "ancestors": lineage,
         }
-        yield event.plain_result(json.dumps(result, ensure_ascii=False))
+        return json.dumps(result, ensure_ascii=False)
 
     @filter.llm_tool(name="species_stats")
     async def species_stats(self, event: AstrMessageEvent) -> str:
         '''查询 NCBI 物种数据库统计信息（节点数、名称数等）。无参数。'''
         if not self.engine:
-            yield event.plain_result(json.dumps({"error": "数据库未连接"}, ensure_ascii=False))
-            return
+            return json.dumps({"error": "数据库未连接"}, ensure_ascii=False)
 
         stats = self.engine.get_stats()
         result = {
@@ -185,7 +173,7 @@ class SpeciesPlugin(Star):
                 for r in (stats.get("rank_dist", []) or [])[:10]
             ],
         }
-        yield event.plain_result(json.dumps(result, ensure_ascii=False))
+        return json.dumps(result, ensure_ascii=False)
 
     # ═══════════════════════════════════════════════════════
     #  Commands — 显式命令
