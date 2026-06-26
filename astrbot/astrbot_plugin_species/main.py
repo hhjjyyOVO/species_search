@@ -209,7 +209,8 @@ class SpeciesPlugin(Star):
             return
 
         keyword = parts[1].strip()
-        yield await self._do_query(event, keyword)
+        async for msg in self._do_query(event, keyword):
+            yield msg
 
     @filter.command("lineage")
     async def species_lineage_cmd(self, event: AstrMessageEvent):
@@ -220,7 +221,8 @@ class SpeciesPlugin(Star):
         if not keyword:
             yield event.plain_result("用法: /lineage <名称或tax_id>")
             return
-        yield await self._do_lineage(event, keyword)
+        async for msg in self._do_lineage(event, keyword):
+            yield msg
 
     @filter.command("children")
     async def species_children_cmd(self, event: AstrMessageEvent):
@@ -231,12 +233,14 @@ class SpeciesPlugin(Star):
         if not keyword:
             yield event.plain_result("用法: /children <名称或tax_id>")
             return
-        yield await self._do_children(event, keyword)
+        async for msg in self._do_children(event, keyword):
+            yield msg
 
     @filter.command("taxonomy_stats")
     async def species_stats_cmd(self, event: AstrMessageEvent):
         '''NCBI 物种数据库统计。'''
-        yield await self._do_stats(event)
+        async for msg in self._do_stats(event):
+            yield msg
 
     # ═══════════════════════════════════════════════════════
     #  Internal
