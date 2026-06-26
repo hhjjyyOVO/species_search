@@ -10,7 +10,6 @@ AstrBot 物种查询插件 — 接入 NCBI Taxonomy 数据库。
   TAXONOMY_DB   — taxonomy.db 路径
 """
 
-import json
 import os
 import sys
 
@@ -62,39 +61,31 @@ class SpeciesPlugin(Star):
 
     @filter.llm_tool(name="query_species")
     async def query_species(self, event: AstrMessageEvent, name: str) -> str:
-        '''查询物种分类信息。支持中文名、拉丁学名、英文名、TaxID。
+        '''查询物种分类信息。返回人类可读的文本格式结果。
 
         Args:
             name(string): 物种名称（中文如"人类"、拉丁如"Homo sapiens"）或纯数字 TaxID
         '''
         if not self.engine:
-            return json.dumps({"error": "数据库未连接"}, ensure_ascii=False)
+            return "数据库未连接，请联系管理员检查插件配置。"
 
         tid = self._resolve_name(name)
         if tid is None:
             results = self._search_multi(name, limit=8)
             if results:
-                return json.dumps({
-                    "type": "candidates",
-                    "query": name,
-                    "count": len(results),
-                    "items": [
-                        {
-                            "tax_id": r.get("tax_id"),
-                            "name": r.get("zh_name") or r.get("name_txt", ""),
-                            "rank": r.get("rank", ""),
-                        }
-                        for r in results
-                    ],
-                    "hint": "请用户选择具体条目，然后用 query_species_by_id 查询"
-                }, ensure_ascii=False)
-            return json.dumps({"type": "not_found", "query": name}, ensure_ascii=False)
+                lines = [f"「{name}」找到 {len(results)} 个匹配项："]
+                for i, r in enumerate(results[:5], 1):
+                    label = r.get("zh_name") or r.get("name_txt", "")
+                    lines.append(f"{i}. {label} (TaxID: {r['tax_id']}) [{r.get('rank', '')}]")
+                lines.append("请回复序号或 TaxID 查看详情。")
+                return "\n".join(lines)
+            return f"未找到「{name}」的信息。请尝试拉丁学名或英文名。"
 
         info = self.engine.get_info(tid)
         if info is None:
-            return json.dumps({"type": "not_found", "tax_id": tid}, ensure_ascii=False)
+            return f"TaxID {tid} 不存在或已被删除。"
 
-        return json.dumps(self._info_to_dict(info), ensure_ascii=False)
+        return self._fmt_info_text(info)
 
     @filter.llm_tool(name="query_species_by_id")
     async def query_species_by_id(self, event: AstrMessageEvent, tax_id: int) -> str:
@@ -104,76 +95,55 @@ class SpeciesPlugin(Star):
             tax_id(number): NCBI Taxonomy ID
         '''
         if not self.engine:
-            return json.dumps({"error": "数据库未连接"}, ensure_ascii=False)
+            return "数据库未连接。"
 
         tid = self.engine.resolve(tax_id)
         if tid is None:
-            return json.dumps({"type": "not_found", "tax_id": tax_id}, ensure_ascii=False)
+            return f"TaxID {tax_id} 不存在或已被删除。"
 
         info = self.engine.get_info(tid)
         if info is None:
-            return json.dumps({"type": "not_found", "tax_id": tid}, ensure_ascii=False)
+            return f"TaxID {tid} 不存在。"
 
-        return json.dumps(self._info_to_dict(info), ensure_ascii=False)
+        return self._fmt_info_text(info)
 
     @filter.llm_tool(name="species_lineage")
     async def species_lineage(self, event: AstrMessageEvent, name: str) -> str:
-        '''查询物种完整分类谱系（域/界/门/纲/目/科/属/种）。
+        '''查询物种完整分类谱系。返回树形文本。
 
         Args:
             name(string): 物种名称或 TaxID
         '''
         if not self.engine:
-            return json.dumps({"error": "数据库未连接"}, ensure_ascii=False)
+            return "数据库未连接。"
 
         tid = self._resolve_name(name)
         if tid is None:
-            return json.dumps({"type": "not_found", "query": name}, ensure_ascii=False)
+            return f"未找到「{name}」。"
 
         info = self.engine.get_info(tid)
         if info is None:
-            return json.dumps({"type": "not_found", "tax_id": tid}, ensure_ascii=False)
+            return f"TaxID {tid} 不存在。"
 
-        lineage = []
-        for a in info.get("ancestors", []):
-            lineage.append({
-                "rank": a.get("rank", ""),
-                "rank_cn": a.get("rank_cn", ""),
-                "name": a.get("name", ""),
-                "zh_name": a.get("zh_name", ""),
-            })
-
-        result = {
-            "type": "lineage",
-            "tax_id": tid,
-            "scientific_name": info.get("scientific_name", ""),
-            "zh_name": info.get("zh_name", ""),
-            "rank": info.get("rank_cn", info.get("rank", "")),
-            "ancestors": lineage,
-        }
-        return json.dumps(result, ensure_ascii=False)
+        return self._fmt_lineage_text(info)
 
     @filter.llm_tool(name="species_stats")
     async def species_stats(self, event: AstrMessageEvent) -> str:
-        '''查询 NCBI 物种数据库统计信息（节点数、名称数等）。无参数。'''
+        '''查询 NCBI 物种数据库统计信息。'''
         if not self.engine:
-            return json.dumps({"error": "数据库未连接"}, ensure_ascii=False)
+            return "数据库未连接。"
 
         stats = self.engine.get_stats()
-        result = {
-            "type": "stats",
-            "nodes": stats.get("nodes", 0),
-            "names": stats.get("names", 0),
-            "lineage": stats.get("lineage", 0),
-            "merged_ids": stats.get("merged_ids", 0),
-            "deleted_ids": stats.get("deleted_ids", 0),
-            "extra_zh": stats.get("extra_zh", 0),
-            "top_ranks": [
-                {"rank": r[0], "count": r[1]}
-                for r in (stats.get("rank_dist", []) or [])[:10]
-            ],
-        }
-        return json.dumps(result, ensure_ascii=False)
+        lines = [
+            "NCBI 物种数据库统计：",
+            f"  节点总数: {stats.get('nodes', 0):,}",
+            f"  名称记录: {stats.get('names', 0):,}",
+            f"  谱系记录: {stats.get('lineage', 0):,}",
+            f"  合并 ID:  {stats.get('merged_ids', 0):,}",
+            f"  已删 ID:  {stats.get('deleted_ids', 0):,}",
+            f"  中文词典: {stats.get('extra_zh', 0):,}",
+        ]
+        return "\n".join(lines)
 
     # ═══════════════════════════════════════════════════════
     #  Commands — 显式命令
@@ -261,34 +231,6 @@ class SpeciesPlugin(Star):
         else:
             return self.engine.search_names(keyword, limit=limit)
 
-    @staticmethod
-    def _info_to_dict(info: dict) -> dict:
-        """get_info() dict → 结构化 JSON dict。补全中文翻译标记。"""
-        ancestors = []
-        for a in info.get("ancestors", []):
-            ancestors.append({
-                "rank": a.get("rank", ""),
-                "rank_cn": a.get("rank_cn", ""),
-                "name": a.get("name", ""),
-                "zh_name": a.get("zh_name", ""),
-            })
-
-        all_names = []
-        for n in info.get("all_names", []):
-            all_names.append({"name": n.get("name", ""), "class": n.get("class", "")})
-
-        return {
-            "type": "species_info",
-            "tax_id": info.get("tax_id"),
-            "scientific_name": info.get("scientific_name", ""),
-            "zh_name": info.get("zh_name", ""),
-            "rank": info.get("rank", ""),
-            "rank_cn": info.get("rank_cn", ""),
-            "ancestors": ancestors,
-            "all_names": all_names,
-            "children_count": info.get("children_count", 0),
-        }
-
     async def _do_query(self, event, keyword: str):
         if not self.engine:
             yield event.plain_result("[species] 数据库未连接。")
@@ -368,26 +310,37 @@ class SpeciesPlugin(Star):
         yield event.plain_result("\n".join(lines))
 
     @staticmethod
-    def _fmt_info_text(info: dict) -> str:
+    def _rank_cn(rank: str) -> str:
+        """rank → 中文名，在 RANK_CN 不可用时的后备。"""
+        try:
+            from taxonomy.config import RANK_CN
+            return RANK_CN.get(rank, rank)
+        except ImportError:
+            return rank
+
+    @classmethod
+    def _fmt_info_text(cls, info: dict) -> str:
         zh = info.get("zh_name", "")
         sci = info.get("scientific_name", "")
         tid = info.get("tax_id", "")
-        rank = info.get("rank_cn", info.get("rank", ""))
+        rank = info.get("rank_cn") or cls._rank_cn(info.get("rank", ""))
         header = f"【{zh}】{sci}" if zh else f"【{sci}】"
         lines = [header, f"TaxID: {tid} | Rank: {rank}"]
         for a in info.get("ancestors", []):
             a_zh = a.get("zh_name", "")
             label = f"{a['name']} ({a_zh})" if a_zh else a["name"]
-            lines.append(f"{a.get('rank_cn', a.get('rank', ''))}: {label}")
+            rc = a.get("rank_cn") or cls._rank_cn(a.get("rank", ""))
+            lines.append(f"{rc}: {label}")
         return "\n".join(lines)
 
-    @staticmethod
-    def _fmt_lineage_text(info: dict) -> str:
+    @classmethod
+    def _fmt_lineage_text(cls, info: dict) -> str:
         label = info.get("zh_name") or info["scientific_name"]
         lines = [f"【{label}】分类谱系：\n"]
         for a in info.get("ancestors", []):
             a_zh = a.get("zh_name", "")
             name = f"{a['name']} ({a_zh})" if a_zh else a["name"]
+            rc = a.get("rank_cn") or cls._rank_cn(a.get("rank", ""))
             indent = "  " * (len(lines) - 1)
-            lines.append(f"{indent}↳ {a.get('rank_cn', a.get('rank', ''))}: {name}")
+            lines.append(f"{indent}↳ {rc}: {name}")
         return "\n".join(lines)
