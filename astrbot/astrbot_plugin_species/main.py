@@ -25,7 +25,7 @@ class SpeciesPlugin(Star):
         self.config = config or {}
         self.engine = None
 
-    def initialize(self):
+    async def initialize(self):
         """加载插件 — 设置路径 + 连接数据库。"""
         tax_home = self.config.get("taxonomy_home", "").strip()
         if tax_home:
